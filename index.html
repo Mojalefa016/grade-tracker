@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GradeTrack — Student Result Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:       #080c18;
+      --bg2:      #0d1224;
+      --bg3:      #111827;
+      --card:     rgba(17,24,39,0.8);
+      --accent:   #f5a623;
+      --accent2:  #f97316;
+      --green:    #22c55e;
+      --red:      #ef4444;
+      --blue:     #3b82f6;
+      --text:     #e8eaf0;
+      --muted:    #7a82a0;
+      --border:   rgba(245,166,35,0.15);
+      --radius:   14px;
+      --t:        0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    html{scroll-behavior:smooth;}
+
+    body{
+      font-family:'DM Sans',sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+
+    body::before{
+      content:'';
+      position:fixed;inset:0;
+      background-image:
+        linear-gradient(rgba(245,166,35,.03) 1px,transparent 1px),
+        linear-gradient(90deg,rgba(245,166,35,.03) 1px,transparent 1px);
+      background-size:48px 48px;
+      pointer-events:none;z-index:0;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar{
+      position:sticky;top:0;z-index:100;
+      display:flex;align-items:center;justify-content:space-between;
+      padding:.9rem 2rem;
+      background:rgba(8,12,24,.9);
+      backdrop-filter:blur(20px);
+      border-bottom:1px solid var(--border);
+    }
+    .logo{
+      font-family:'Syne',sans-serif;
+      font-weight:800;font-size:1.2rem;
+      display:flex;align-items:center;gap:.6rem;
+    }
+    .logo-icon{
+      width:34px;height:34px;
+      background:var(--accent);
+      border-radius:9px;
+      display:flex;align-items:center;justify-content:center;
+      font-size:1rem;color:#080c18;font-weight:800;
+    }
+    .topbar-actions{display:flex;gap:.75rem;}
+
+    /* ── BUTTONS ── */
+    .btn,.btn-ghost,.btn-danger{
+      display:inline-flex;align-items:center;gap:.4rem;
+      padding:.55rem 1.2rem;border-radius:9px;
+      font-family:'DM Sans',sans-serif;
+      font-weight:600;font-size:.85rem;
+      border:none;cursor:pointer;
+      transition:all var(--t);white-space:nowrap;
+    }
+    .btn{background:var(--accent);color:#080c18;}
+    .btn:hover{background:var(--accent2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(245,166,35,.3);}
+    .btn-ghost{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,.15);}
+    .btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+    .btn-danger{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2);}
+    .btn-danger:hover{background:var(--red);color:#fff;}
+    .btn-sm{padding:.35rem .8rem;font-size:.78rem;}
+
+    /* ── LAYOUT ── */
+    .main{
+      max-width:1200px;margin:0 auto;
+      padding:2rem 1.5rem;
+      position:relative;z-index:1;
+    }
+
+    /* ── STATS CARDS ── */
+    .stats-grid{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:1rem;margin-bottom:2rem;
+    }
+    .stat-card{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      padding:1.3rem 1.4rem;
+      backdrop-filter:blur(8px);
+      transition:all var(--t);
+      position:relative;overflow:hidden;
+    }
+    .stat-card::before{
+      content:'';position:absolute;
+      top:-30px;right:-30px;
+      width:90px;height:90px;
+      border-radius:50%;
+      background:radial-gradient(circle,var(--glow-color,rgba(245,166,35,.15)),transparent);
+      pointer-events:none;
+    }
+    .stat-card:hover{border-color:var(--accent);transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.3);}
+    .stat-label{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem;}
+    .stat-value{
+      font-family:'Syne',sans-serif;
+      font-size:2rem;font-weight:800;
+      color:var(--accent);line-height:1;
+    }
+    .stat-sub{font-size:.78rem;color:var(--muted);margin-top:.3rem;}
+
+    /* ── GRID ── */
+    .content-grid{
+      display:grid;
+      grid-template-columns:1fr 380px;
+      gap:1.5rem;
+    }
+
+    /* ── PANEL ── */
+    .panel{
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      backdrop-filter:blur(8px);
+      overflow:hidden;
+    }
+    .panel-header{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:1.1rem 1.4rem;
+      border-bottom:1px solid var(--border);
+    }
+    .panel-title{
+      font-family:'Syne',sans-serif;
+      font-weight:700;font-size:1rem;
+    }
+    .panel-body{padding:1.4rem;}
+
+    /* ── FORM ── */
+    .form-group{margin-bottom:1rem;}
+    label{
+      display:block;
+      font-size:.78rem;font-weight:600;
+      letter-spacing:.06em;text-transform:uppercase;
+      color:var(--muted);margin-bottom:.45rem;
+    }
+    input,select{
+      width:100%;
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:9px;
+      padding:.65rem 1rem;
+      color:var(--text);
+      font-family:'DM Sans',sans-serif;
+      font-size:.9rem;
+      transition:border-color var(--t),box-shadow var(--t);
+      outline:none;
+    }
+    input:focus,select:focus{
+      border-color:var(--accent);
+      box-shadow:0 0 0 3px rgba(245,166,35,.12);
+    }
+    input::placeholder{color:var(--muted);}
+    select option{background:#111827;color:var(--text);}
+
+    .form-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}
+    .form-divider{
+      height:1px;
+      background:linear-gradient(90deg,transparent,var(--border),transparent);
+      margin:1.2rem 0;
+    }
+
+    /* ── TABLE ── */
+    .table-wrap{overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;}
+    thead tr{border-bottom:1px solid var(--border);}
+    th{
+      text-align:left;padding:.75rem 1rem;
+      font-size:.72rem;font-weight:700;
+      letter-spacing:.1em;text-transform:uppercase;
+      color:var(--muted);white-space:nowrap;
+    }
+    td{
+      padding:.85rem 1rem;
+      font-size:.88rem;
+      border-bottom:1px solid rgba(255,255,255,.04);
+      vertical-align:middle;
+    }
+    tbody tr{transition:background var(--t);}
+    tbody tr:hover{background:rgba(245,166,35,.04);}
+    tbody tr:last-child td{border-bottom:none;}
+
+    /* ── BADGES ── */
+    .badge{
+      display:inline-flex;align-items:center;gap:.3rem;
+      padding:.22rem .65rem;
+      border-radius:99px;
+      font-size:.72rem;font-weight:700;
+      letter-spacing:.04em;text-transform:uppercase;
+    }
+    .badge-pass{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.2);}
+    .badge-fail{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.2);}
+    .badge-dist{background:rgba(245,166,35,.12);color:var(--accent);border:1px solid rgba(245,166,35,.2);}
+    .badge-merit{background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.2);}
+
+    /* ── GRADE LETTER ── */
+    .grade-letter{
+      font-family:'Syne',sans-serif;
+      font-weight:800;font-size:1rem;
+    }
+    .grade-A{color:var(--accent);}
+    .grade-B{color:var(--blue);}
+    .grade-C{color:var(--green);}
+    .grade-F{color:var(--red);}
+
+    /* ── SEARCH ── */
+    .search-wrap{position:relative;}
+    .search-wrap input{padding-left:2.4rem;}
+    .search-icon{
+      position:absolute;left:.9rem;top:50%;transform:translateY(-50%);
+      color:var(--muted);font-size:.9rem;pointer-events:none;
+    }
+
+    /* ── TABS ── */
+    .tabs{display:flex;gap:.5rem;padding:1rem 1.4rem 0;}
+    .tab{
+      padding:.5rem 1rem;border-radius:8px 8px 0 0;
+      font-size:.82rem;font-weight:600;
+      color:var(--muted);cursor:pointer;
+      border:none;background:transparent;
+      transition:all var(--t);font-family:'DM Sans',sans-serif;
+      border-bottom:2px solid transparent;
+    }
+    .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+    .tab:hover{color:var(--text);}
+
+    /* ── CHART ── */
+    .chart-wrap{
+      padding:1.2rem;
+      height:220px;
+      position:relative;
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty{
+      text-align:center;padding:3rem 1rem;
+      color:var(--muted);font-size:.9rem;
+    }
+    .empty-icon{font-size:2.5rem;margin-bottom:.75rem;opacity:.5;}
+
+    /* ── STUDENT NAME ── */
+    .student-name{
+      font-family:'Syne',sans-serif;
+      font-weight:700;font-size:.95rem;color:var(--text);
+    }
+    .student-id{font-size:.75rem;color:var(--muted);}
+
+    /* ── PROGRESS MINI ── */
+    .mini-bar{
+      width:80px;height:5px;
+      background:rgba(255,255,255,.07);
+      border-radius:99px;overflow:hidden;
+      display:inline-block;vertical-align:middle;
+      margin-left:.5rem;
+    }
+    .mini-fill{
+      height:100%;border-radius:99px;
+      background:linear-gradient(90deg,var(--accent),var(--accent2));
+    }
+
+    /* ── TOAST ── */
+    #toast{
+      position:fixed;bottom:2rem;right:2rem;
+      background:var(--card);border:1px solid var(--border);
+      border-radius:11px;padding:.85rem 1.3rem;
+      font-size:.88rem;font-weight:500;
+      display:flex;align-items:center;gap:.6rem;
+      box-shadow:0 8px 30px rgba(0,0,0,.4);
+      transform:translateY(80px);opacity:0;
+      transition:all .4s var(--t);
+      z-index:999;pointer-events:none;
+    }
+    #toast.show{transform:translateY(0);opacity:1;}
+
+    /* ── MODAL ── */
+    .modal-overlay{
+      position:fixed;inset:0;
+      background:rgba(0,0,0,.7);
+      backdrop-filter:blur(6px);
+      z-index:200;
+      display:flex;align-items:center;justify-content:center;
+      opacity:0;pointer-events:none;transition:opacity var(--t);
+    }
+    .modal-overlay.open{opacity:1;pointer-events:all;}
+    .modal{
+      background:var(--bg2);
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:2rem;
+      width:100%;max-width:440px;
+      transform:scale(.95);transition:transform var(--t);
+    }
+    .modal-overlay.open .modal{transform:scale(1);}
+    .modal-title{
+      font-family:'Syne',sans-serif;
+      font-weight:800;font-size:1.2rem;
+      margin-bottom:1.5rem;
+    }
+    .modal-actions{display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.5rem;}
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:900px){
+      .stats-grid{grid-template-columns:1fr 1fr;}
+      .content-grid{grid-template-columns:1fr;}
+    }
+    @media(max-width:500px){
+      .stats-grid{grid-template-columns:1fr 1fr;}
+      .topbar{padding:.8rem 1rem;}
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">G</div>
+    GradeTrack
+  </div>
+  <div class="topbar-actions">
+    <button class="btn-ghost btn" onclick="exportCSV()">⬇ Export CSV</button>
+    <button class="btn" onclick="openAddStudent()">+ Add Student</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card" style="--glow-color:rgba(245,166,35,.15)">
+      <div class="stat-label">Total Students</div>
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-sub">Enrolled</div>
+    </div>
+    <div class="stat-card" style="--glow-color:rgba(34,197,94,.15)">
+      <div class="stat-label">Pass Rate</div>
+      <div class="stat-value" id="statPass" style="color:var(--green)">0%</div>
+      <div class="stat-sub">≥ 50% average</div>
+    </div>
+    <div class="stat-card" style="--glow-color:rgba(59,130,246,.15)">
+      <div class="stat-label">Class Average</div>
+      <div class="stat-value" id="statAvg" style="color:var(--blue)">0%</div>
+      <div class="stat-sub">All subjects</div>
+    </div>
+    <div class="stat-card" style="--glow-color:rgba(245,166,35,.15)">
+      <div class="stat-label">Top Student</div>
+      <div class="stat-value" id="statTop" style="font-size:1rem;padding-top:.4rem;">—</div>
+      <div class="stat-sub" id="statTopScore">No data yet</div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content-grid">
+
+    <!-- LEFT: RESULTS TABLE -->
+    <div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📋 Student Results</span>
+          <div class="search-wrap" style="width:220px">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="Search student..." oninput="renderTable()"/>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Subjects</th>
+                <th>Average</th>
+                <th>Grade</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+          <div id="emptyState" class="empty">
+            <div class="empty-icon">🎓</div>
+            <div>No students yet. Add your first student!</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHART -->
+      <div class="panel" style="margin-top:1.5rem;">
+        <div class="tabs">
+          <button class="tab active" onclick="switchChart('bar',this)">Grade Distribution</button>
+          <button class="tab" onclick="switchChart('doughnut',this)">Pass / Fail</button>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="gradeChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: PANELS -->
+    <div style="display:flex;flex-direction:column;gap:1.5rem;">
+
+      <!-- ADD GRADE -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">➕ Add Grade</span>
+        </div>
+        <div class="panel-body">
+          <div class="form-group">
+            <label>Select Student</label>
+            <select id="gradeStudent">
+              <option value="">— Choose student —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Subject</label>
+            <input type="text" id="gradeSubject" placeholder="e.g. Mathematics"/>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Mark (%)</label>
+              <input type="number" id="gradeMark" placeholder="0–100" min="0" max="100"/>
+            </div>
+            <div class="form-group">
+              <label>Max Mark</label>
+              <input type="number" id="gradeMax" placeholder="100" value="100" min="1"/>
+            </div>
+          </div>
+          <button class="btn" style="width:100%" onclick="addGrade()">Save Grade</button>
+        </div>
+      </div>
+
+      <!-- STUDENT GRADES DETAIL -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📊 Grade Breakdown</span>
+        </div>
+        <div class="panel-body" id="breakdownPanel">
+          <div class="empty" style="padding:1.5rem 0">
+            <div class="empty-icon" style="font-size:1.8rem">📂</div>
+            <div>Select a student to view breakdown</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ADD STUDENT MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title">🎓 Add New Student</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>First Name</label>
+        <input type="text" id="newFirstName" placeholder="e.g. Mojalefa"/>
+      </div>
+      <div class="form-group">
+        <label>Last Name</label>
+        <input type="text" id="newLastName" placeholder="e.g. Mokhampane"/>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Student ID</label>
+      <input type="text" id="newStudentId" placeholder="e.g. STU-001"/>
+    </div>
+    <div class="form-group">
+      <label>Programme / Course</label>
+      <input type="text" id="newCourse" placeholder="e.g. BSc Information Technology"/>
+    </div>
+    <div class="form-group">
+      <label>Year of Study</label>
+      <select id="newYear">
+        <option>1st Year</option>
+        <option>2nd Year</option>
+        <option>3rd Year</option>
+        <option selected>4th Year</option>
+        <option>Graduate</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost btn" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="addStudent()">Add Student</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+/* ── DATA ── */
+let students = JSON.parse(localStorage.getItem('gt_students') || '[]');
+let grades   = JSON.parse(localStorage.getItem('gt_grades')   || '[]');
+let chart    = null;
+let chartMode = 'bar';
+let selectedStudent = null;
+
+function save() {
+  localStorage.setItem('gt_students', JSON.stringify(students));
+  localStorage.setItem('gt_grades',   JSON.stringify(grades));
+}
+
+/* ── HELPERS ── */
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function getAvg(sid) {
+  const gs = grades.filter(g => g.sid === sid);
+  if (!gs.length) return null;
+  const total = gs.reduce((s, g) => s + (g.mark / g.max) * 100, 0);
+  return total / gs.length;
+}
+
+function getLetter(avg) {
+  if (avg === null) return '—';
+  if (avg >= 75) return 'A';
+  if (avg >= 60) return 'B';
+  if (avg >= 50) return 'C';
+  return 'F';
+}
+
+function getStatus(avg) {
+  if (avg === null) return null;
+  return avg >= 50 ? 'pass' : 'fail';
+}
+
+function getBadge(avg) {
+  if (avg === null) return '<span class="badge" style="color:var(--muted)">No grades</span>';
+  if (avg >= 75) return '<span class="badge badge-dist">Distinction</span>';
+  if (avg >= 60) return '<span class="badge badge-merit">Merit</span>';
+  if (avg >= 50) return '<span class="badge badge-pass">Pass</span>';
+  return '<span class="badge badge-fail">Fail</span>';
+}
+
+function toast(msg, icon='✅') {
+  const el = document.getElementById('toast');
+  el.innerHTML = `<span>${icon}</span> ${msg}`;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+/* ── STATS ── */
+function updateStats() {
+  const total = students.length;
+  document.getElementById('statTotal').textContent = total;
+
+  if (!total) {
+    document.getElementById('statPass').textContent = '0%';
+    document.getElementById('statAvg').textContent  = '0%';
+    document.getElementById('statTop').textContent  = '—';
+    document.getElementById('statTopScore').textContent = 'No data yet';
+    return;
+  }
+
+  const avgs = students.map(s => getAvg(s.id)).filter(a => a !== null);
+  const passing = avgs.filter(a => a >= 50).length;
+  const passRate = total ? Math.round((passing / total) * 100) : 0;
+  const classAvg = avgs.length ? (avgs.reduce((s,a) => s+a, 0) / avgs.length).toFixed(1) : 0;
+
+  document.getElementById('statPass').textContent = passRate + '%';
+  document.getElementById('statAvg').textContent  = classAvg + '%';
+
+  if (avgs.length) {
+    const topIdx = avgs.indexOf(Math.max(...avgs));
+    const topStudents = students.filter(s => getAvg(s.id) !== null);
+    if (topStudents[topIdx]) {
+      document.getElementById('statTop').textContent = topStudents[topIdx].firstName;
+      document.getElementById('statTopScore').textContent = Math.max(...avgs).toFixed(1) + '% average';
+    }
+  }
+}
+
+/* ── TABLE ── */
+function renderTable() {
+  const q    = document.getElementById('searchInput').value.toLowerCase();
+  const body = document.getElementById('tableBody');
+  const empty = document.getElementById('emptyState');
+
+  let filtered = students.filter(s =>
+    (s.firstName + ' ' + s.lastName).toLowerCase().includes(q) ||
+    s.studentId.toLowerCase().includes(q)
+  );
+
+  if (!filtered.length) {
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  empty.style.display = 'none';
+  body.innerHTML = filtered.map(s => {
+    const avg     = getAvg(s.id);
+    const avgDisp = avg !== null ? avg.toFixed(1) + '%' : '—';
+    const letter  = getLetter(avg);
+    const cnt     = grades.filter(g => g.sid === s.id).length;
+    const barW    = avg ? Math.round(avg) : 0;
+
+    return `<tr onclick="showBreakdown('${s.id}')" style="cursor:pointer">
+      <td>
+        <div class="student-name">${s.firstName} ${s.lastName}</div>
+        <div class="student-id">${s.studentId} · ${s.year}</div>
+      </td>
+      <td><span style="color:var(--text)">${cnt}</span> <span style="color:var(--muted);font-size:.78rem">subjects</span></td>
+      <td>
+        ${avgDisp}
+        <div class="mini-bar"><div class="mini-fill" style="width:${barW}%"></div></div>
+      </td>
+      <td><span class="grade-letter grade-${letter}">${letter}</span></td>
+      <td>${getBadge(avg)}</td>
+      <td>
+        <button class="btn-ghost btn btn-sm" onclick="event.stopPropagation();showBreakdown('${s.id}')">View</button>
+        <button class="btn-danger btn btn-sm" onclick="event.stopPropagation();deleteStudent('${s.id}')">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── BREAKDOWN ── */
+function showBreakdown(sid) {
+  selectedStudent = sid;
+  const s  = students.find(st => st.id === sid);
+  const gs = grades.filter(g => g.sid === sid);
+  const panel = document.getElementById('breakdownPanel');
+
+  if (!s) return;
+
+  const rows = gs.map(g => {
+    const pct    = ((g.mark / g.max) * 100).toFixed(1);
+    const letter = getLetter(parseFloat(pct));
+    return `<tr>
+      <td style="font-weight:500">${g.subject}</td>
+      <td>${g.mark}/${g.max}</td>
+      <td>${pct}%</td>
+      <td><span class="grade-letter grade-${letter}">${letter}</span></td>
+      <td><button class="btn-danger btn btn-sm" onclick="deleteGrade('${g.id}','${sid}')">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  const avg = getAvg(sid);
+  panel.innerHTML = `
+    <div style="margin-bottom:1rem;">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;">${s.firstName} ${s.lastName}</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:.2rem">${s.course} · ${s.year}</div>
+    </div>
+    ${gs.length ? `
+    <table style="width:100%">
+      <thead><tr>
+        <th style="text-align:left;padding:.5rem 0;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Subject</th>
+        <th style="text-align:left;padding:.5rem 0;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Mark</th>
+        <th style="text-align:left;padding:.5rem 0;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">%</th>
+        <th style="text-align:left;padding:.5rem 0;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Grade</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:.82rem;color:var(--muted)">Overall Average</span>
+      <span style="font-family:'Syne',sans-serif;font-weight:800;color:var(--accent);font-size:1.2rem">${avg ? avg.toFixed(1)+'%' : '—'}</span>
+    </div>` : `<div class="empty" style="padding:1rem 0"><div>No grades yet for this student.</div></div>`}
+  `;
+}
+
+/* ── ADD STUDENT ── */
+function openAddStudent() {
+  document.getElementById('modalOverlay').classList.add('open');
+  // Auto-generate ID
+  const num = String(students.length + 1).padStart(3, '0');
+  document.getElementById('newStudentId').value = 'STU-' + num;
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+function addStudent() {
+  const fn  = document.getElementById('newFirstName').value.trim();
+  const ln  = document.getElementById('newLastName').value.trim();
+  const sid = document.getElementById('newStudentId').value.trim();
+  const crs = document.getElementById('newCourse').value.trim();
+  const yr  = document.getElementById('newYear').value;
+
+  if (!fn || !ln) { toast('Please enter first and last name.','⚠️'); return; }
+
+  students.push({ id: uid(), firstName: fn, lastName: ln, studentId: sid, course: crs, year: yr });
+  save(); refresh(); closeModal();
+
+  // Clear form
+  ['newFirstName','newLastName','newStudentId','newCourse'].forEach(id => document.getElementById(id).value = '');
+  toast(`${fn} ${ln} added successfully!`);
+}
+
+/* ── ADD GRADE ── */
+function addGrade() {
+  const sid  = document.getElementById('gradeStudent').value;
+  const subj = document.getElementById('gradeSubject').value.trim();
+  const mark = parseFloat(document.getElementById('gradeMark').value);
+  const max  = parseFloat(document.getElementById('gradeMax').value) || 100;
+
+  if (!sid)          { toast('Select a student first.','⚠️'); return; }
+  if (!subj)         { toast('Enter a subject name.','⚠️'); return; }
+  if (isNaN(mark))   { toast('Enter a valid mark.','⚠️'); return; }
+  if (mark < 0 || mark > max) { toast('Mark must be between 0 and ' + max,'⚠️'); return; }
+
+  grades.push({ id: uid(), sid, subject: subj, mark, max });
+  save(); refresh();
+
+  document.getElementById('gradeSubject').value = '';
+  document.getElementById('gradeMark').value    = '';
+  document.getElementById('gradeMax').value     = '100';
+
+  if (selectedStudent === sid) showBreakdown(sid);
+  toast(`Grade saved for ${students.find(s=>s.id===sid)?.firstName}!`);
+}
+
+/* ── DELETE ── */
+function deleteStudent(sid) {
+  if (!confirm('Delete this student and all their grades?')) return;
+  students = students.filter(s => s.id !== sid);
+  grades   = grades.filter(g => g.sid !== sid);
+  save(); refresh();
+  toast('Student removed.','🗑️');
+}
+
+function deleteGrade(gid, sid) {
+  grades = grades.filter(g => g.id !== gid);
+  save(); refresh();
+  showBreakdown(sid);
+  toast('Grade removed.','🗑️');
+}
+
+/* ── STUDENT DROPDOWN ── */
+function refreshDropdown() {
+  const sel = document.getElementById('gradeStudent');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Choose student —</option>' +
+    students.map(s => `<option value="${s.id}" ${s.id===cur?'selected':''}>${s.firstName} ${s.lastName}</option>`).join('');
+}
+
+/* ── CHART ── */
+function updateChart() {
+  const ctx = document.getElementById('gradeChart').getContext('2d');
+  if (chart) chart.destroy();
+
+  if (!students.length) return;
+
+  if (chartMode === 'bar') {
+    const counts = { A: 0, B: 0, C: 0, F: 0 };
+    students.forEach(s => {
+      const avg = getAvg(s.id);
+      if (avg !== null) counts[getLetter(avg)]++;
+    });
+
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['A (Distinction ≥75%)', 'B (Merit ≥60%)', 'C (Pass ≥50%)', 'F (Fail <50%)'],
+        datasets: [{
+          data: [counts.A, counts.B, counts.C, counts.F],
+          backgroundColor: ['rgba(245,166,35,.7)', 'rgba(59,130,246,.7)', 'rgba(34,197,94,.7)', 'rgba(239,68,68,.7)'],
+          borderColor:     ['#f5a623','#3b82f6','#22c55e','#ef4444'],
+          borderWidth: 1, borderRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color:'rgba(255,255,255,.05)' }, ticks: { color:'#7a82a0', font:{size:11} } },
+          y: { grid: { color:'rgba(255,255,255,.05)' }, ticks: { color:'#7a82a0', stepSize:1 }, beginAtZero:true }
+        }
+      }
+    });
+  } else {
+    const pass = students.filter(s => { const a=getAvg(s.id); return a!==null&&a>=50; }).length;
+    const fail = students.filter(s => { const a=getAvg(s.id); return a!==null&&a<50; }).length;
+    const noGrades = students.length - pass - fail;
+
+    chart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Pass','Fail','No Grades'],
+        datasets: [{
+          data: [pass, fail, noGrades],
+          backgroundColor:['rgba(34,197,94,.7)','rgba(239,68,68,.7)','rgba(122,130,160,.3)'],
+          borderColor:['#22c55e','#ef4444','#7a82a0'],
+          borderWidth:1,
+        }]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{
+            position:'right',
+            labels:{ color:'#e8eaf0', font:{size:12}, padding:16, usePointStyle:true }
+          }
+        },
+        cutout:'65%'
+      }
+    });
+  }
+}
+
+function switchChart(mode, btn) {
+  chartMode = mode;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  updateChart();
+}
+
+/* ── EXPORT CSV ── */
+function exportCSV() {
+  if (!students.length) { toast('No data to export.','⚠️'); return; }
+  const rows = [['Student ID','Name','Course','Year','Subject','Mark','Max','Percentage','Grade','Status']];
+  students.forEach(s => {
+    const gs = grades.filter(g => g.sid === s.id);
+    if (!gs.length) {
+      rows.push([s.studentId, s.firstName+' '+s.lastName, s.course, s.year, 'N/A','','','','','']);
+    } else {
+      gs.forEach(g => {
+        const pct = ((g.mark/g.max)*100).toFixed(1);
+        rows.push([s.studentId, s.firstName+' '+s.lastName, s.course, s.year,
+          g.subject, g.mark, g.max, pct+'%', getLetter(parseFloat(pct)),
+          parseFloat(pct)>=50?'Pass':'Fail']);
+      });
+    }
+  });
+  const csv  = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const link = document.createElement('a');
+  link.href  = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  link.download = 'GradeTrack_Results.csv';
+  link.click();
+  toast('CSV exported!');
+}
+
+/* ── REFRESH ALL ── */
+function refresh() {
+  updateStats();
+  renderTable();
+  refreshDropdown();
+  updateChart();
+}
+
+/* ── DEMO DATA ── */
+function loadDemo() {
+  if (students.length) return;
+  const demo = [
+    { id:'s1', firstName:'Mojalefa', lastName:'Mokhampane', studentId:'STU-001', course:'BSc IT', year:'Graduate' },
+    { id:'s2', firstName:'Lerato',   lastName:'Dlamini',    studentId:'STU-002', course:'BSc IT', year:'3rd Year' },
+    { id:'s3', firstName:'Sipho',    lastName:'Nkosi',      studentId:'STU-003', course:'BSc IT', year:'2nd Year' },
+    { id:'s4', firstName:'Ayanda',   lastName:'Zulu',       studentId:'STU-004', course:'BSc CS', year:'4th Year' },
+  ];
+  const demoGrades = [
+    {id:'g1',sid:'s1',subject:'Java Programming',     mark:82,max:100},
+    {id:'g2',sid:'s1',subject:'Database Systems',     mark:78,max:100},
+    {id:'g3',sid:'s1',subject:'Computer Networks',    mark:74,max:100},
+    {id:'g4',sid:'s1',subject:'Web Development',      mark:90,max:100},
+    {id:'g5',sid:'s2',subject:'Java Programming',     mark:65,max:100},
+    {id:'g6',sid:'s2',subject:'Database Systems',     mark:58,max:100},
+    {id:'g7',sid:'s2',subject:'Computer Networks',    mark:62,max:100},
+    {id:'g8',sid:'s3',subject:'Java Programming',     mark:45,max:100},
+    {id:'g9',sid:'s3',subject:'Database Systems',     mark:52,max:100},
+    {id:'g10',sid:'s4',subject:'Algorithms',          mark:88,max:100},
+    {id:'g11',sid:'s4',subject:'Software Engineering',mark:91,max:100},
+    {id:'g12',sid:'s4',subject:'Machine Learning',    mark:76,max:100},
+  ];
+  students = demo;
+  grades   = demoGrades;
+  save();
+}
+
+/* ── INIT ── */
+loadDemo();
+refresh();
+
+// Close modal on overlay click
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// Enter key on modal inputs
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+</script>
+</body>
+</html>
